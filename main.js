@@ -17,7 +17,9 @@
 		CANVASWIDTH = canvas.width,
 		CANVASHEIGHT = canvas.height,
 		CHARACTER_SPEED = 3,
-		CHARACTER = null;
+		CHARACTER = null,
+		AMMOARRAY = [],
+		BULLET_SPEED = 10;
 
 	var uuidString = function() {
 	    return Math.random().toString(36).substring(7)
@@ -48,6 +50,16 @@
 	function main() {
 		ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
 		CHARACTER.draw();
+
+		for (var i in AMMOARRAY) {
+			var ammo = AMMOARRAY[i];
+			if (ammo.inCanvas()) {
+				ammo.draw();
+			} else {
+				AMMOARRAY.splice(i,1);
+				ctx.drawImage(sprite, 4, 222, 6, 6, ammo.FiredStartX-2, ammo.FiredStartY-2, 9, 9);
+			}
+		}
 		RAF(main);
 	}	
 	function Character(name, startX, startY, spriteSizeX, spriteSizeY) {
@@ -124,6 +136,39 @@
 		}
 	}
 
+	function Ammo(xS,yS,xE,yE) {
+		this.FiredStartX = xS;
+		this.FiredStartY = yS;
+		this.FiredEndX = xE;
+		this.FiredEndY = yE;
+		this.speed = BULLET_SPEED;
+	    this.angleRadian = Math.atan2(this.FiredEndY - this.FiredStartY, this.FiredEndX - this.FiredStartX);
+	    this.rotation = (this.angleRadian * 180 / Math.PI);
+	    this.ammoID = uuidString();
+	    this.initiator = CHARACTER.ID;
+	}
+
+	Ammo.prototype.draw = function() {
+	    this.FiredStartX +=  Math.cos(this.angleRadian) * this.speed;
+	    this.FiredStartY +=  Math.sin(this.angleRadian) * this.speed;
+	  
+	 	ctx.save();
+		ctx.translate(this.FiredStartX, this.FiredStartY);
+		ctx.rotate(this.angleRadian + Math.PI/2);
+		ctx.drawImage(sprite , 0 , 222 , 4 , 12 , 0 , 0 , 4 , 16 );
+		ctx.restore();
+	}
+
+	Ammo.prototype.inCanvas = function() {
+		if (this.FiredStartX < CANVASWIDTH && 
+	        this.FiredStartX > 0 && 
+	        this.FiredStartY < CANVASHEIGHT && 
+   	        this.FiredStartY > 0) {
+			return true;
+		} 
+		else return false;
+	}
+
 	function checkKeyDown (e) {
 		e.preventDefault();
 		var keyID = e.keyCode || e.which;
@@ -169,7 +214,11 @@
 	function mouseClicked(e) {
 		var posX = e.offsetX,
 			posY = e.offsetY;
-		console.log(posX, posY)
+		AMMOARRAY.push(new Ammo(CHARACTER.meta.drawX + CHARACTER.meta.spriteSizeX, 
+								CHARACTER.meta.drawY + CHARACTER.meta.spriteSizeY, 
+								posX, posY));
+
+
 	}
 
 })()
