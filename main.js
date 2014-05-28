@@ -28,9 +28,9 @@
 	console.log('sprites loaded')
 
 	function main() {
-		console.log('main start', sprite);
 		var me = new Character('phil');
-		console.log(me)
+		me.draw(0, 30, 16, 16, 20,20, 2);
+		console.log(me);		
 		// RAF(main);
 	}
 
@@ -38,11 +38,15 @@
 		this.x = null;
 		this.y = null;
 	}
+	DrawObject.prototype.draw = function(spriteX, spriteY, spriteSizeX, spriteSizeY, x, y, multiple) {
+		ctx.drawImage(sprite, spriteX, spriteY, spriteSizeX, spriteSizeY, x, y, spriteSizeX * multiple, spriteSizeY * multiple);
+	}
 	function Character(name) {
 		this.id = uuidString();
 		this.name = name || 'character';
 	}
 	Character.prototype = new DrawObject();
+
 
 	function checkKeyDown (e) {
 		var keyID = e.keyCode || e.which;
