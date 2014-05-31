@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<script src="/javascripts/Faye 1.0.1/browser/faye-browser-min.js"></script>
+	<script>
+		var game_session_id = '<%= game_session_id %>';
+		console.log('game_session_id = ', game_session_id);
+	</script>
+</head>
+<body>
+	<canvas id="canvas" width="800px" height="500px"></canvas>
+	<style>
+		* {
+			padding: 0;
+			margin: 0;
+			background-color: #3498db;
+		}
+		canvas {
+			top: 0;
+			left: 0;
+			bottom: 0;
+			background-color: white;
+			right: 0;
+			margin: auto;
+			position: absolute;
+		}
+	</style>
+	<script src="/javascripts/main.js"></script>
+</body>
+</html>
