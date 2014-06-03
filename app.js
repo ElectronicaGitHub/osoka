@@ -27,11 +27,19 @@ app.get('/', function (req, res) {
     })
 });
 
-server.listen(app.get('port'), function(){
+server.listen(app.get('port'), function() {
     console.log('Express server listening on port ' + app.get('port'));
 });
 
 var client = new faye.Client('http://localhost:8000/game');
+
+bayeux.on('disconnect', function(id) {
+    console.log('disconnected ', id)
+})
+
+bayeux.on('handshake', function(id) {
+    console.log('handshaked with ', id)
+})
 
 // client.subscribe('/main', function(data) {
 //     console.log('/main:' , data)
