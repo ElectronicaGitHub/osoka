@@ -57,7 +57,7 @@
 	ctx.mozImageSmoothingEnabled = false;
 
 	(function preload() {
-		client = new Faye.Client('http://localhost:8000/game', {
+		client = new Faye.Client('http://' + location.host + '/game', {
 			retry: 5
 		});
 		client.subscribe('/main', function(data) {
