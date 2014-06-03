@@ -16,15 +16,14 @@ app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'public')));
 
 var uuidString = function() {
-    return Math.random().toString(36).substring(2,13)
+    return Math.random().toString(36).substring(7)
 }
-// генерим айди для персонажа и отправляем на клиент
-// пока что не понятно нахуя...прост))))))))))))))))
+
 app.get('/', function (req, res) {
     var userID = uuidString();
     res.render('index', {
         game_session_id : userID
-    })
+    });
 });
 
 server.listen(app.get('port'), function() {
@@ -33,12 +32,29 @@ server.listen(app.get('port'), function() {
 
 var client = new faye.Client('http://localhost:8000/game');
 
-bayeux.on('disconnect', function(id) {
-    console.log('disconnected ', id)
+var players = {},
+    last_id = null;
+
+bayeux.on('unsubscribe', function(id) {
+    console.log('disconnected ', id);
+    client.publish('/exit', players[id].id)
+    delete players[id];
+    console.log('players = ', players)
 })
 
-bayeux.on('handshake', function(id) {
-    console.log('handshaked with ', id)
+bayeux.on('subscribe', function(id) {
+    last_id = id;
+    if (!players[last_id]) {
+        console.log('handshaked ', id);
+        players[last_id] = {};
+    }
+})
+
+bayeux.on('publish', function(_id, channel, data) {
+    if (channel == '/init') {
+        players[last_id] = data;    
+        console.log('inited players', players);
+    }
 })
 
 // client.subscribe('/main', function(data) {

@@ -17,9 +17,13 @@
 		CANVASWIDTH = canvas.width,
 		CANVASHEIGHT = canvas.height,
 		CHARACTER_SPEED = 5,
+		CHARACTER_MAX_HEALTH = 10,
+		AMMO_POWER = 1,
 		CHARACTER = null,
 		AMMOARRAY = [],
-		CHARACTERARRAY = [],
+		ENEMYAMMOARRAY = [],
+		AMMOARRAYS = [AMMOARRAY, ENEMYAMMOARRAY],
+		CHARACTERARRAY = {},
 		BULLET_SPEED = 10,
 		STOP_NUMBER = 1;
 
@@ -56,21 +60,46 @@
 		client = new Faye.Client('http://localhost:8000/game', {
 			retry: 5
 		});
-		client.publish('/main', {
-			id : window.game_session_id, 
-			status: 'connected' 
-		})
 		client.subscribe('/main', function(data) {
 			console.log(data);
 		})
 		client.subscribe('/init', function(data) {
 			if (data.id != CHARACTER.id) {
+				CHARACTERARRAY[data.id] = new Character(data.name, data.meta.drawX, data.meta.drawY, 16, 16);
 				console.log('персонаж присоединился к игре', data.id, data.name);
+				console.log('МАССИВ ПЕРСОНАЖЕЙ = ', CHARACTERARRAY);
 			}
 		})
+		client.subscribe('/exit', function(id) {
+			console.log('character with id exited = ', id)
+			delete CHARACTERARRAY[id];
+			console.log(CHARACTERARRAY);
+		})
+
 		client.subscribe('/movement', function(data) {
 			if (data.id != CHARACTER.id) {
-				console.log('другой игрок', data.id , data.name);
+				// console.log(data.id);
+				if (!CHARACTERARRAY[data.id]) { // хз что происходит, поэтому проверка
+					CHARACTERARRAY[data.id] = new Character(data.name, data.meta.drawX, data.meta.drawY, 16, 16);
+				}
+				CHARACTERARRAY[data.id].meta = data.meta;
+			}
+		})
+		client.subscribe('/ammos', function(data) {
+			if (data.initiator != CHARACTER.id) {
+				var ammo = new Ammo(data.startX, data.startY, data.endX, data.endY, data.initiator);
+				ENEMYAMMOARRAY.push(ammo);
+			}
+		})
+		client.subscribe('/ammo/exit', function(data) {
+			if (data.initiator == CHARACTER.id) {
+				for (var i in AMMOARRAY) {
+					if (AMMOARRAY[i].id == data.id) {
+						AMMOARRAY.splice(i,1);
+					}
+				}
+				ctx.drawImage(sprite, 4, 222, 6, 6, data.meta.drawX-2, data.meta.drawY-2, 9, 9);
+				// console.log('пуля должна сьебать = ', data)
 			}
 		})
 
@@ -88,6 +117,7 @@
 
 	function create() {
 		CHARACTER = new Character('Philip', 100, 100, 16, 16);
+		client.publish('/init', CHARACTER);
 		main();
 	}
 
@@ -98,13 +128,23 @@
 
 		CHARACTER.draw();
 
-		for (var i in AMMOARRAY) {
-			var ammo = AMMOARRAY[i];
-			if (ammo.inCanvas() && !ammo.collision()) {
-				ammo.draw();
-			} else {
-				AMMOARRAY.splice(i,1);
-				ctx.drawImage(sprite, 4, 222, 6, 6, ammo.meta.drawX-2, ammo.meta.drawY-2, 9, 9);
+		if (Object.keys(CHARACTERARRAY).length) {
+			for (var i in CHARACTERARRAY) {
+				var char = CHARACTERARRAY[i];
+				char.draw();
+			}
+		}
+		if ((AMMOARRAY.length + ENEMYAMMOARRAY.length) > 0) {
+			for (var i = AMMOARRAYS.length-1; i >=0; i--) {
+				for (var j = AMMOARRAYS[i].length-1; j>=0; j--) {
+					var ammo = AMMOARRAYS[i][j];
+					if (ammo.inCanvas() && !ammo.collision() && !ammo.hit()) {
+						ammo.draw();
+					} else {
+						AMMOARRAYS[i].splice(j,1);
+						ctx.drawImage(sprite, 4, 222, 6, 6, ammo.meta.drawX-2, ammo.meta.drawY-2, 9, 9);
+					}
+				}
 			}
 		}
 		RAF(main);
@@ -117,6 +157,7 @@
 			drawY : startY,
 			lastX : startX, 
 			lastY : startY,
+			health : CHARACTER_MAX_HEALTH,
 			spriteSizeX : spriteSizeX,
 			spriteSizeY : spriteSizeY,
 			speed : CHARACTER_SPEED,
@@ -128,8 +169,6 @@
 			animationChangeRate : 200,
 			multiple : 2
 		}
-		// пушим при инициализации персонажа
-		client.publish('/init', this);
 	}
 	Character.prototype.sendToSocket = function() {
 		if (this.meta.lastX != this.meta.drawX || 
@@ -175,14 +214,17 @@
 			this.meta.spriteSizeX, this.meta.spriteSizeY, 
 			this.meta.drawX, this.meta.drawY, 
 			this.meta.spriteSizeX * this.meta.multiple, this.meta.spriteSizeY * this.meta.multiple);
+		ctx.fillStyle = '#050'; 
+		ctx.fillText(this.meta.health, this.meta.drawX + this.meta.spriteSizeX / 2, 
+			this.meta.drawY + this.meta.spriteSizeY * this.meta.multiple + 10);
 	}
 	Character.prototype.checkDirection = function() {
-		this.sendToSocket();
+		if (this.id == CHARACTER.id) {
+			this.sendToSocket();
+		}
 	
 		this.meta.lastX = this.meta.drawX;
 		this.meta.lastY = this.meta.drawY;
-
-		
 
 		if (this.meta.isLeftKey && this.meta.isDownKey) {
 			this.meta.drawX += this.meta.speed/Math.sqrt(8);
@@ -218,7 +260,7 @@
 		}	
 	}
 
-	function Ammo(xS,yS,xE,yE) {
+	function Ammo(xS,yS,xE,yE, initiator) {
 	    this.meta = {
 			drawX : xS,
 			drawY : yS
@@ -229,12 +271,7 @@
 	    this.angleRadian = Math.atan2(this.FiredEndY - this.meta.drawY, this.FiredEndX - this.meta.drawX);
 	    this.rotation = (this.angleRadian * 180 / Math.PI);
 	    this.ammoID = uuidString();
-	    this.initiator = CHARACTER.id;
-
-	    this.sendToSocket();
-	}
-	Ammo.prototype.sendToSocket = function() {
-		client.publish('/ammos', this);
+	    this.initiator = initiator || CHARACTER.id;
 	}
 	Ammo.prototype.collision = function() {
 		var x = this.meta.drawX,
@@ -247,7 +284,34 @@
 			return false;
 		}
 	}
+	Ammo.prototype.inCanvas = function() {
+		if (this.meta.drawX < CANVASWIDTH && 
+	        this.meta.drawX > 0 && 
+	        this.meta.drawY < CANVASHEIGHT && 
+   	        this.meta.drawY > 0) {
+			return true;
+		} 
+		else return false;
+	}
+	Ammo.prototype.hit = function() {
+		if (this.initiator == CHARACTER.id) return false;
+		var offsetX = CHARACTER.meta.spriteSizeX * CHARACTER.meta.multiple;
+		var offsetY = CHARACTER.meta.spriteSizeY * CHARACTER.meta.multiple;
+		var charStartX = CHARACTER.meta.drawX;
+		var charEndX = charStartX + offsetX; 
+		var charStartY = CHARACTER.meta.drawY; 
+		var charEndY = charStartY + offsetY; 
 
+		if (this.meta.drawX > charStartX && 
+			this.meta.drawX < charEndX && 
+			this.meta.drawY > charStartY && 
+			this.meta.drawY < charEndY) {
+			console.log('попадание');
+			CHARACTER.meta.health -= AMMO_POWER;
+			client.publish('/ammo/exit', this);
+			return true;
+		} else return false;
+	}
 	Ammo.prototype.draw = function() {
 	    this.meta.drawX +=  Math.cos(this.angleRadian) * this.speed;
 	    this.meta.drawY +=  Math.sin(this.angleRadian) * this.speed;
@@ -259,15 +323,6 @@
 		ctx.restore();
 	}
 
-	Ammo.prototype.inCanvas = function() {
-		if (this.meta.drawX < CANVASWIDTH && 
-	        this.meta.drawX > 0 && 
-	        this.meta.drawY < CANVASHEIGHT && 
-   	        this.meta.drawY > 0) {
-			return true;
-		} 
-		else return false;
-	}
 
 	function checkKeyDown (e) {
 		e.preventDefault();
@@ -313,10 +368,19 @@
 
 	function mouseClicked(e) {
 		var posX = e.offsetX,
-			posY = e.offsetY;
-		AMMOARRAY.push(new Ammo(CHARACTER.meta.drawX + CHARACTER.meta.spriteSizeX, 
+			posY = e.offsetY,
+			ammo = new Ammo(CHARACTER.meta.drawX + CHARACTER.meta.spriteSizeX, 
 								CHARACTER.meta.drawY + CHARACTER.meta.spriteSizeY, 
-								posX, posY));
+								posX, posY);
+
+		AMMOARRAY.push(ammo);
+		client.publish('/ammos', {
+			initiator : CHARACTER.id,
+			startX : CHARACTER.meta.drawX + CHARACTER.meta.spriteSizeX,
+			startY : CHARACTER.meta.drawY + CHARACTER.meta.spriteSizeY,
+			endX : posX,
+			endY : posY
+		});
 	}
 
 	var BLOCKS_FOR_X = MAP[0].length;
@@ -330,13 +394,15 @@
 	function mapCreate() {
 		for (var i = MAP.length-1; i >= 0; i--) {
 			for (var j = MAP[i].length-1; j >= 0; j--) {
-				ctx.drawImage(background, 0 + 50 * MAP[i][j], 0, 
-										  50, 50, 
-										  BLOCKS_SIZE.X * j, BLOCKS_SIZE.Y * i, 
-										  BLOCKS_SIZE.X, BLOCKS_SIZE.Y)
+				ctx.drawImage(background, 
+					0 + 50 * MAP[i][j], 0, 
+					50, 50, 
+					BLOCKS_SIZE.X * j, BLOCKS_SIZE.Y * i, 
+					BLOCKS_SIZE.X, BLOCKS_SIZE.Y)
 			}
 		}
 	}
-	
+
+
 
 })()
