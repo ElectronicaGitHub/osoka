@@ -57,50 +57,35 @@
 	ctx.mozImageSmoothingEnabled = false;
 
 	(function preload() {
-		client = new Faye.Client('http://' + location.host + '/game', {
-			retry: 5
-		});
-		client.subscribe('/main', function(data) {
-			console.log(data);
-		})
-		client.subscribe('/init', function(data) {
-			if (data.id != CHARACTER.id) {
+		client = io();
+
+		client.on('init', function(data) {
 				CHARACTERARRAY[data.id] = new Character(data.name, data.meta.drawX, data.meta.drawY, 16, 16);
 				console.log('персонаж присоединился к игре', data.id, data.name);
 				console.log('МАССИВ ПЕРСОНАЖЕЙ = ', CHARACTERARRAY);
-			}
 		})
-		client.subscribe('/exit', function(id) {
+		client.on('exit', function(id) {
 			console.log('character with id exited = ', id)
 			delete CHARACTERARRAY[id];
 			console.log(CHARACTERARRAY);
 		})
-
-		client.subscribe('/movement', function(data) {
-			if (data.id != CHARACTER.id) {
-				// console.log(data.id);
-				if (!CHARACTERARRAY[data.id]) { // хз что происходит, поэтому проверка
-					CHARACTERARRAY[data.id] = new Character(data.name, data.meta.drawX, data.meta.drawY, 16, 16);
-				}
-				CHARACTERARRAY[data.id].meta = data.meta;
+		client.on('movement', function(data) {
+			if (!CHARACTERARRAY[data.id]) { // хз что происходит, поэтому проверка
+				CHARACTERARRAY[data.id] = new Character(data.name, data.meta.drawX, data.meta.drawY, 16, 16);
 			}
+			CHARACTERARRAY[data.id].meta = data.meta;
 		})
-		client.subscribe('/ammos', function(data) {
-			if (data.initiator != CHARACTER.id) {
-				var ammo = new Ammo(data.startX, data.startY, data.endX, data.endY, data.initiator);
-				ENEMYAMMOARRAY.push(ammo);
-			}
+		client.on('ammos', function(data) {
+			var ammo = new Ammo(data.startX, data.startY, data.endX, data.endY, data.initiator);
+			ENEMYAMMOARRAY.push(ammo);
 		})
-		client.subscribe('/ammo/exit', function(data) {
-			if (data.initiator == CHARACTER.id) {
-				for (var i in AMMOARRAY) {
-					if (AMMOARRAY[i].id == data.id) {
-						AMMOARRAY.splice(i,1);
-					}
+		client.on('ammo exit', function(data) {
+			for (var i in AMMOARRAY) {
+				if (AMMOARRAY[i].id == data.id) {
+					AMMOARRAY.splice(i,1);
 				}
-				ctx.drawImage(sprite, 4, 222, 6, 6, data.meta.drawX-2, data.meta.drawY-2, 9, 9);
-				// console.log('пуля должна сьебать = ', data)
 			}
+			ctx.drawImage(sprite, 4, 222, 6, 6, data.meta.drawX-2, data.meta.drawY-2, 9, 9);
 		})
 
 		sprite = new Image();
@@ -117,14 +102,13 @@
 
 	function create() {
 		CHARACTER = new Character('Philip', 100, 100, 16, 16);
-		client.publish('/init', CHARACTER);
+		client.emit('init', CHARACTER);
 		main();
 	}
 
 	function main() {
 		ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
 		mapCreate();
-
 
 		CHARACTER.draw();
 
@@ -173,7 +157,7 @@
 	Character.prototype.sendToSocket = function() {
 		if (this.meta.lastX != this.meta.drawX || 
 			this.meta.lastY != this.meta.drawY ) {
-			client.publish('/movement', this);
+			client.emit('movement', this);
 		}
 	}
 
@@ -308,7 +292,8 @@
 			this.meta.drawY < charEndY) {
 			console.log('попадание');
 			CHARACTER.meta.health -= AMMO_POWER;
-			client.publish('/ammo/exit', this);
+			client.emit('movement', CHARACTER);
+			client.emit('ammo exit', this);
 			return true;
 		} else return false;
 	}
@@ -374,7 +359,7 @@
 								posX, posY);
 
 		AMMOARRAY.push(ammo);
-		client.publish('/ammos', {
+		client.emit('ammos', {
 			initiator : CHARACTER.id,
 			startX : CHARACTER.meta.drawX + CHARACTER.meta.spriteSizeX,
 			startY : CHARACTER.meta.drawY + CHARACTER.meta.spriteSizeY,
