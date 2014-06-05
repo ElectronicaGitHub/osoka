@@ -24,8 +24,10 @@
 		ENEMYAMMOARRAY = [],
 		AMMOARRAYS = [AMMOARRAY, ENEMYAMMOARRAY],
 		CHARACTERARRAY = {},
-		BULLET_SPEED = 10,
-		STOP_NUMBER = 1;
+		BULLET_SPEED = 5,
+		STOP_NUMBER = 1,
+		DRAW_HIT = false, 
+		DRAW_HIT_AMMO_NUMBER = null;
 
 	// sprites
 	var sprite, background, client;
@@ -37,12 +39,12 @@
 	var MAP = [
 		[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
 		[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-		[1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
-		[1,0,1,1,1,1,0,0,1,0,0,0,0,0,0,1],
-		[1,0,0,0,0,0,0,0,1,0,0,0,1,1,0,1],
-		[1,0,0,0,0,0,0,0,1,0,0,0,1,0,0,1],
-		[1,0,0,0,0,0,0,0,1,0,0,0,1,0,0,1],
-		[1,0,0,0,0,0,0,0,0,0,0,1,1,0,0,1],
+		[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+		[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+		[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+		[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+		[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+		[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
 		[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
 		[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
 	];
@@ -76,16 +78,17 @@
 			CHARACTERARRAY[data.id].meta = data.meta;
 		})
 		client.on('ammos', function(data) {
-			var ammo = new Ammo(data.startX, data.startY, data.endX, data.endY, data.initiator);
+			var ammo = new Ammo(data.startX, data.startY, data.endX, data.endY, data.initiator, data.id);
 			ENEMYAMMOARRAY.push(ammo);
 		})
 		client.on('ammo exit', function(data) {
 			for (var i in AMMOARRAY) {
 				if (AMMOARRAY[i].id == data.id) {
-					AMMOARRAY.splice(i,1);
+					DRAW_HIT = true;
+					DRAW_HIT_AMMO_NUMBER = i;
+					// ctx.drawImage(sprite, 4, 222, 6, 6, AMMOARRAY[i].meta.drawX-2, AMMOARRAY[i].meta.drawY-2, 9, 9);
 				}
 			}
-			ctx.drawImage(sprite, 4, 222, 6, 6, data.meta.drawX-2, data.meta.drawY-2, 9, 9);
 		})
 
 		sprite = new Image();
@@ -101,7 +104,7 @@
 
 
 	function create() {
-		CHARACTER = new Character('Philip', 100, 100, 16, 16);
+		CHARACTER = new Character('Philip', 50, 50, 16, 16);
 		client.emit('init', CHARACTER);
 		main();
 	}
@@ -130,6 +133,12 @@
 					}
 				}
 			}
+		}
+		if (DRAW_HIT) {
+			ctx.drawImage(sprite, 4, 222, 6, 6, AMMOARRAY[DRAW_HIT_AMMO_NUMBER].meta.drawX-2, AMMOARRAY[DRAW_HIT_AMMO_NUMBER].meta.drawY-2, 9, 9);
+			AMMOARRAY.splice(DRAW_HIT_AMMO_NUMBER,1);
+			DRAW_HIT = false;
+			DRAW_HIT_AMMO_NUMBER = null;
 		}
 		RAF(main);
 	}	
@@ -244,7 +253,7 @@
 		}	
 	}
 
-	function Ammo(xS,yS,xE,yE, initiator) {
+	function Ammo(xS,yS,xE,yE, initiator, id) {
 	    this.meta = {
 			drawX : xS,
 			drawY : yS
@@ -254,7 +263,7 @@
 		this.speed = BULLET_SPEED;
 	    this.angleRadian = Math.atan2(this.FiredEndY - this.meta.drawY, this.FiredEndX - this.meta.drawX);
 	    this.rotation = (this.angleRadian * 180 / Math.PI);
-	    this.ammoID = uuidString();
+	    this.id = id || uuidString();
 	    this.initiator = initiator || CHARACTER.id;
 	}
 	Ammo.prototype.collision = function() {
@@ -292,8 +301,8 @@
 			this.meta.drawY < charEndY) {
 			console.log('попадание');
 			CHARACTER.meta.health -= AMMO_POWER;
-			client.emit('movement', CHARACTER);
 			client.emit('ammo exit', this);
+			client.emit('movement', CHARACTER);
 			return true;
 		} else return false;
 	}
@@ -364,7 +373,8 @@
 			startX : CHARACTER.meta.drawX + CHARACTER.meta.spriteSizeX,
 			startY : CHARACTER.meta.drawY + CHARACTER.meta.spriteSizeY,
 			endX : posX,
-			endY : posY
+			endY : posY,
+			id : ammo.id
 		});
 	}
 

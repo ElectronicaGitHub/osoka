@@ -17,15 +17,15 @@
 	<script src="/javascripts/socket.io-client/socket.io.js"></script>
 </head>
 <body ng-app="app" ng-controller="GameCtrl">
-	<div class="pregame centered">
+	<!-- <div class="pregame centered">
 		<p class="name_label">Enter your name sir</p>
 		<input class="bb" type="text" ng-model="name">
 		<button class="button_continue" ng-click="continue()">CONTINUE</button>
 		<div class="enemy-list">
 			<div class="each-enemy"></div>
 		</div>
-	</div>
-	<!-- <canvas class="centered" id="canvas" width="800px" height="500px"></canvas> -->
+	</div> -->
+	<canvas class="centered" id="canvas" width="800px" height="500px"></canvas>
 	<style>
 		* {
 			font-family: "Open Sans";
@@ -96,6 +96,6 @@
 			        box-sizing: border-box;
 		}
 	</style>
-	<!-- // <script src="/javascripts/main.js"></script> -->
+	<script src="/javascripts/main.js"></script>
 </body>
 </html>
