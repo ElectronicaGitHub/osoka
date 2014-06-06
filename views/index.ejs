@@ -3,63 +3,240 @@
 <head>
 	<meta charset="UTF-8">
 	<title>Document</title>
-	<!-- // <script src="/javascripts/Faye 1.0.1/browser/faye-browser-min.js"></script> -->
+	<link rel="stylesheet" href="/libs/font-awesome/css/font-awesome.min.css">	
 	<link href='http://fonts.googleapis.com/css?family=Open+Sans:800,700,400&subset=latin,cyrillic-ext' rel='stylesheet' type='text/css'>
 	<link rel="stylesheet" href="/libs/bootstrap/dist/css/bootstrap.min.css">
 	<script src="/libs/jquery/dist/jquery.min.js"></script>
 	<script src="/libs/angular/angular.min.js"></script>
+	<script src="/javascripts/socket.io-client/socket.io.js"></script>
 	<script>
 	app = angular.module('app', [])
 	.controller('GameCtrl', ['$scope', '$http', function ($scope, $http) {
 		var uuidString = function() {
 		    return Math.random().toString(36).substring(7)
 		}
-		$scope.name = '';
-		$scope.createGame = function(game_name, playersPerTeam) {
-			var url = '/game';
-			var data = {
-				id : uuidString(),
-				game_name : game_name,
-				playersPerTeam : playersPerTeam 
-			} 
-			$http.post(url, data)
-				.success(function(data) {
+		$scope.player_name = '',
+		$scope.games = [],
+		$scope.client_id = uuidString(),
+		$scope.tab = 'games',
+		$scope.own_game = null,
+		$scope.selected_game = null,
+		$scope.game_status = null;
+
+		$scope.init = function() {
+			$scope.getGames();
+		}
+
+		$scope.getGames = function() {
+			var url = '/games/all';
+			$http.get(url)
+				.success(function (data) {
 					console.log(data);
-					
+					$scope.games = data;
+					console.log('$scope.games = ', $scope.games)
 				})
 				.error(function(data) {
 					console.log(data)
 				})
 		}
+		var pre_game_client = io();
+
+		pre_game_client.on('games', function(data) {
+			console.log(data);
+			if (!$scope.games.length) {
+				$scope.games = data;
+			} else {
+				for (i in data) {
+					$scope.games[i].players = data[i].players;
+					if ($scope.selected_game) {
+						if ($scope.selected_game.id == data[i].id) {
+							$scope.selected_game = data[i];
+						}
+					}
+				}
+			}
+			$scope.$apply();
+		})
+
+		$scope.createGame = function(game_name, playersPerTeam) {
+			var url = '/game';
+			var data = {
+				id : uuidString(),
+				game_name : game_name,
+				playersPerTeam : playersPerTeam,
+				players : [ {}, {} ]
+			} 
+			$http.post(url, data)
+				.success(function (data) {
+					$scope.own_game = data.data;
+					$scope.selected_game = data.data;
+					$scope.game_status = 'waiting';
+					$scope.addPlayer(0, $scope.selected_game.id, $scope.client_id, $scope.player_name);					
+					console.log('$scope.own_game = ', $scope.own_game);
+					console.log('$scope.selected_game = ', $scope.selected_game);
+				})
+				.error(function (data) {
+					console.log(data)
+				})
+		}
+
+		$scope.addPlayer = function(side, game_id, client_id, player_name) {
+			console.log('enter game');
+			var data = {
+				side : side, 
+				game_id : game_id,
+				player_name : player_name, 
+				client_id : client_id
+			};
+				var url = '/game/player/add';
+				$http.post(url, data)
+					.success(function (data) {
+						console.log('Добавлен в игру ', data);
+						$scope.selected_game = data;
+					}) 
+					.error(function (data) {
+						console.log(data)
+					})
+		}
+
+		$scope.removePlayer = function(side, game_id, client_id, player_name) {
+			var url = '/game/player/remove';
+			var data = {
+				side : side, 
+				game_id : game_id,
+				player_name : player_name, 
+				client_id : client_id
+			};
+			$http.post(url, data)
+				.success(function (data) {
+					console.log('Удален из игры ', data);
+					$scope.selected_game = null;
+				}) 
+				.error(function (data) {
+					console.log(data)
+				})
+		}
+
+
+		$scope.countPlayers = function(game) {
+			var a = Object.keys(game.players[0]).length;
+			var b = Object.keys(game.players[1]).length;
+			return a + b;
+		}
+
 	}])
 	</script>
 
-	<script src="/javascripts/socket.io-client/socket.io.js"></script>
 </head>
-<body ng-app="app" ng-controller="GameCtrl">
+<body ng-app="app" ng-controller="GameCtrl" ng-init="init()" ng-class="{'bg-wait' : game_status=='waiting'}">
 	<div class="pregame centered">	
-		<p class="name_label">Enter your name sir</p>
-		<input class="bb" type="text" ng-model="name">
-		<div class="row" style="margin:0">
-			<div class=" col-sm-6 col-md-6 col-lg-6 name_label">Games</div>
-			<div class=" col-sm-6 col-md-6 col-lg-6 name_label">Create</div>
-		</div>
-		<div class="game-create">
-			<input type="text" ng-model="game_name">
-			<input type="number" ng-model="players">
-			<button ng-click="createGame(game_name, players)">Создать</button>
-
+		<p class="name_label">Enter your name</p>
+		<input class="bb" type="text" ng-model="player_name">
+		<div ng-show="player_name">
+			<div ng-show="!own_game">
+				<div class="row" style="margin:0">
+					<div class=" col-xs-6 col-sm-6 col-md-6 col-lg-6 name_label" 
+						 ng-click="tab='games'"
+						 ng-class="{selectedTab : tab=='games'}">
+						 <span>Games</span>
+						 <span ng-if="games.length">( {{ games.length }} )</span>
+						</div>
+					<div class=" col-xs-6 col-sm-6 col-md-6 col-lg-6 name_label" 
+						 ng-click="tab='create'"
+						 ng-class="{selectedTab : tab=='create'}">Create</div>
+				</div>
+				<div class="parameters" ng-show="tab=='create'">
+					<input type="text" placeholder="Game name" ng-model="game_name">
+					<input type="text" placeholder="Players by side" ng-model="players">
+					<button type="button" class="btn btn-primary level" ng-click="createGame(game_name, players)">PROCEED</button>
+				</div>	
+				<div class="parameters" ng-show="tab=='games'">
+					<div ng-show="games.length!=0">
+						<div class="each-game">
+							<div class="game_name header">Game name</div>
+							<div class="playersPerTeam header">Players</div>
+						</div>
+						<div class="each-game row-fluid" ng-repeat="game in games">
+							<div ng-click="game.expanded = !game.expanded">
+								<div class="game_name">{{ game.game_name }}</div>
+								<div class="playersPerTeam">{{ countPlayers(game) }}/{{ game.playersPerTeam*2 }}</div>
+							</div>
+							<div ng-show="game.expanded">
+								<div class="half">
+									<div class="each-player-mini team_header_red"
+										 ng-mouseenter="game.show_adder_0 = true"
+										 ng-mouseleave="game.show_adder_0 = false">
+										 Red Team
+										<span ng-show="game.show_adder_0 && game.client_side != 0" 
+											  class="fa fa-plus-square"
+											  ng-click="addPlayer(0, game.id, client_id, player_name, game.client_team); game.client_side = 0">
+										</span>
+										<span ng-show="game.show_adder_0 && game.client_side == 0" 
+											  class="fa fa-minus-square"
+											  ng-click="removePlayer(0, game.id, client_id, player_name, game.client_team); game.client_side = null">
+										</span>
+									</div>
+									<div class="each-player-mini" ng-repeat="player in game.players.0">{{ player.player_name }}</div>
+								</div>
+								<div class="half">
+									<div class="each-player-mini team_header_blue"
+										 ng-mouseenter="game.show_adder_1 = true"
+										 ng-mouseleave="game.show_adder_1 = false">
+										 Blue Team
+										<span ng-show="game.show_adder_1 && game.client_side != 1" 
+											  class="fa fa-plus-square"
+											  ng-click="addPlayer(1, game.id, client_id, player_name, game.client_team); game.client_side = 1">
+										</span>
+										<span ng-show="game.show_adder_1 && game.client_side == 1" 
+											  class="fa fa-minus-square"
+											  ng-click="removePlayer(1, game.id, client_id, player_name, game.client_team); game.client_side = null">
+										</span>
+									</div>
+									<div class="each-player-mini" ng-repeat="player in game.players.1">{{ player.player_name }}</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div ng-show="games.length==0">
+						<div class="no_games">No games</div>
+						<div class="create_advice" ng-click="tab='create'">Create game</div>
+					</div>
+				</div>
+			</div>
+			<div ng-show="own_game && game_status=='waiting'">
+				<div class="game_created">{{ selected_game.game_name }}</div>
+				<div class="half">
+					<div class="each-player team_header_red">Red Team</div>
+					<div class="each-player" ng-repeat="player in selected_game.players.0">{{ player.player_name }}</div>
+				</div>
+				<div class="half">
+					<div class="each-player team_header_blue">Blue Team</div>
+					<div class="each-player" ng-repeat="player in selected_game.players.1">{{ player.player_name }}</div>
+				</div>
+			</div>
 		</div>
 	</div>
 	<!-- <canvas class="centered" id="canvas" width="800px" height="500px"></canvas> -->
 	<style>
+		*[ng-click] {
+			cursor: pointer;
+		}
 		* {
 			font-family: "Open Sans";
+		}
+		.level {
+			width: 100%;
 		}
 		body {
 			padding: 0;
 			margin: 0;
 			background-color: #3498db;
+			-webkit-transition: all .6s;
+			   -moz-transition: all .6s;
+			        transition: all .6s;
+		}
+		body.bg-wait {
+			background-color: #27ae60;
 		}
 		canvas {
 			background-color: white;
@@ -83,23 +260,126 @@
 			line-height: 30px;
 			font-weight: 800;
 			background-color: white;
-			/*padding: 10px 0 10px 0;*/
 			color: rgba(192, 57, 43,1.0);
 			text-shadow: 0 2px 3px rgba(0,0,0,.2);
 			text-align: center;
+			-webkit-transition: all .6s;
+			   -moz-transition: all .6s;
+			        transition: all .6s;
+		}
+		.each-game {
+			height: 30px;
+		}
+		.no_games, .game_created {
+			width: 100%;
+			height: 40px;
+			line-height: 40px;
+			text-align: center;
+			font-weight: bold;
+			font-weight: 800;
+			font-size: 30px;
+			margin: 30px 0 30px 0;
+		}
+		.game_created {
+			margin: 10px 0 10px 0;
+		}
+		.create_advice {
+			width: 150px;
+			border: 1px dashed rgba(255,255,255,.3);
+			border-radius: 20px;
+			height: 40px;
+			line-height: 40px;
+			font-size: 20px;
+			text-align: center;
+			font-weight: 700;
+			margin: auto;
+			background-color: inherit;
+			-webkit-transition: all .4s;
+			   -moz-transition: all .4s;
+			        transition: all .4s;
+		}
+		.create_advice:hover {
+			background-color: rgba(0,0,0,.1);
+			border: 1px dashed rgba(255,255,255,.5);
+		}
+		.header {
+			background-color: rgba(0,0,0,.3);
+			color: white;
+		}
+		.game_name, .playersPerTeam, .player_each {
+			height: 30px;
+			line-height: 30px;
+			border-bottom: 1px solid rgba(0,0,0,.1);
+			background-color: rgba(0,0,0,.2);
+			font-weight: 800;
+			font-size: 20px;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+			float: left;
+			text-align: center;
+		}
+		.player_each {
+			width: 100%;
+		}
+		.game_name {
+			width: 70%;
+		}
+		.playersPerTeam {
+			width: 30%;
+		}
+		.pregame .name_label:hover {
+			color: rgba(44, 62, 80,.8);
+			background-color: rgba(230, 126, 34,.5);
 		}
 		.pregame input {
 			width: 100%;
-			height: 60px;
-			font-size: 30px;
+			height: 40px;
+			font-size: 20px;
 			font-weight: 800;
 			color: #f39c12;
 			padding: 10px 0;
-			line-height: 40px;
+			line-height: 20px;
 			text-align: center;
 			background-color: rgba(0,0,0,.2);
 			outline: none;
 			border: none;
+		}
+		.btn {
+			font-weight: bold;
+			border-radius: 0;
+			border: 0;
+			height: 40px;
+			line-height: 40px;
+			font-size: 20px;
+			padding: 0;
+			margin: 0;
+		}
+		.selectedTab {
+			background-color: rgba(230, 126, 34,.8) !important;
+			color: rgba(44, 62, 80,1.0) !important;
+		}
+		.each-player {
+			height: 30px;
+			line-height: 30px;
+			font-size: 20px;
+			font-weight: 700;
+			text-align: center;
+		}
+		.each-player-mini {
+			height: 25px;
+			line-height: 25px;
+			font-size: 16px;
+			font-weight: 700;
+			text-align: center;
+		}
+		.team_header_red {
+			background-color: #c0392b;
+			color: white;
+		}
+		.team_header_blue{
+			background-color: #2980b9;
+			color: white;
 		}
 
 		.centered {
