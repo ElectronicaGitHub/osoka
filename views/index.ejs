@@ -5,27 +5,53 @@
 	<title>Document</title>
 	<!-- // <script src="/javascripts/Faye 1.0.1/browser/faye-browser-min.js"></script> -->
 	<link href='http://fonts.googleapis.com/css?family=Open+Sans:800,700,400&subset=latin,cyrillic-ext' rel='stylesheet' type='text/css'>
+	<link rel="stylesheet" href="/libs/bootstrap/dist/css/bootstrap.min.css">
 	<script src="/libs/jquery/dist/jquery.min.js"></script>
 	<script src="/libs/angular/angular.min.js"></script>
 	<script>
 	app = angular.module('app', [])
 	.controller('GameCtrl', ['$scope', '$http', function ($scope, $http) {
+		var uuidString = function() {
+		    return Math.random().toString(36).substring(7)
+		}
 		$scope.name = '';
+		$scope.createGame = function(game_name, playersPerTeam) {
+			var url = '/game';
+			var data = {
+				id : uuidString(),
+				game_name : game_name,
+				playersPerTeam : playersPerTeam 
+			} 
+			$http.post(url, data)
+				.success(function(data) {
+					console.log(data);
+					
+				})
+				.error(function(data) {
+					console.log(data)
+				})
+		}
 	}])
 	</script>
 
 	<script src="/javascripts/socket.io-client/socket.io.js"></script>
 </head>
 <body ng-app="app" ng-controller="GameCtrl">
-	<!-- <div class="pregame centered">
+	<div class="pregame centered">	
 		<p class="name_label">Enter your name sir</p>
 		<input class="bb" type="text" ng-model="name">
-		<button class="button_continue" ng-click="continue()">CONTINUE</button>
-		<div class="enemy-list">
-			<div class="each-enemy"></div>
+		<div class="row" style="margin:0">
+			<div class=" col-sm-6 col-md-6 col-lg-6 name_label">Games</div>
+			<div class=" col-sm-6 col-md-6 col-lg-6 name_label">Create</div>
 		</div>
-	</div> -->
-	<canvas class="centered" id="canvas" width="800px" height="500px"></canvas>
+		<div class="game-create">
+			<input type="text" ng-model="game_name">
+			<input type="number" ng-model="players">
+			<button ng-click="createGame(game_name, players)">Создать</button>
+
+		</div>
+	</div>
+	<!-- <canvas class="centered" id="canvas" width="800px" height="500px"></canvas> -->
 	<style>
 		* {
 			font-family: "Open Sans";
@@ -39,49 +65,43 @@
 			background-color: white;
 		}
 		.pregame {
-			width: 800px;
+			width: 400px;
 			height: 500px;
 			background-color: rgba(0,0,0,.1);
-			/*padding: 10px;*/
 			box-shadow: 0 5px 10px rgba(0,0,0,.5);
 		}
+		.half {
+			float: left;
+			width: 50%;
+			height: 100%;
+		}
 		.pregame .name_label {
-			font-size: 60px;
+			font-size: 20px;
 			margin: 0;
 			padding: 0;
-			height: 60px;
-			line-height: 60px;
+			height: 30px;
+			line-height: 30px;
 			font-weight: 800;
 			background-color: white;
-			padding: 10px 0 20px 0;
+			/*padding: 10px 0 10px 0;*/
 			color: rgba(192, 57, 43,1.0);
 			text-shadow: 0 2px 3px rgba(0,0,0,.2);
 			text-align: center;
 		}
 		.pregame input {
 			width: 100%;
-			height: 100px;
-			font-size: 60px;
+			height: 60px;
+			font-size: 30px;
 			font-weight: 800;
 			color: #f39c12;
 			padding: 10px 0;
-			line-height: 80px;
+			line-height: 40px;
 			text-align: center;
 			background-color: rgba(0,0,0,.2);
 			outline: none;
 			border: none;
 		}
-		.button_continue {
-			width: 100%;
-			font-weight: 800;
-			color: white;
-			border: none;
-			height: 80px;
-			font-size: 50px;
-			text-shadow: 0 2px 4px rgba(0,0,0,.5);
-			line-height: 80px;
-			background-color: #27ae60;
-		}
+
 		.centered {
 			top: 0;
 			left: 0;
@@ -96,6 +116,6 @@
 			        box-sizing: border-box;
 		}
 	</style>
-	<script src="/javascripts/main.js"></script>
+	<!-- // <script src="/javascripts/main.js"></script> -->
 </body>
 </html>
