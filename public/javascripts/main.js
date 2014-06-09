@@ -1,5 +1,7 @@
-(function() {
+GAME_APP = function(GAME_ID) {
 	'use strict';
+
+	console.log('game_app_started');
 
 	var KEYS = {
 		37: 'LEFT',
@@ -106,14 +108,14 @@
 	function create() {
 		CHARACTER = new Character('Philip', 50, 50, 16, 16);
 		client.emit('init', CHARACTER);
-		var id = 'fhkwf3987f';
-		client.emit('main', {
-			channel : id,
-			data : { name : 'philip'}
-		})
-		var chan = 'test_' + id;
+		// var id = 'fhkwf3987f';
+		// client.emit('main', {
+		// 	channel : id,
+		// 	data : { name : 'philip'}
+		// })
+		// var chan = 'test_' + id;
 		// setInterval(function() {
-			client.emit(chan, { test : 'test'})
+			// client.emit(chan, { test : 'test'})
 		// }, 1000)
 
 		main();
@@ -410,4 +412,4 @@
 
 
 
-})()
+}

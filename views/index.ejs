@@ -9,6 +9,7 @@
 	<script src="/libs/jquery/dist/jquery.min.js"></script>
 	<script src="/libs/angular/angular.min.js"></script>
 	<script src="/javascripts/socket.io-client/socket.io.js"></script>
+	<script src="/javascripts/main.js"></script>
 	<script>
 	app = angular.module('app', [])
 	.controller('GameCtrl', ['$scope', '$http', function ($scope, $http) {
@@ -47,7 +48,11 @@
 				$scope.games = data;
 			} else {
 				for (i in data) {
-					$scope.games[i].players = data[i].players;
+					local_expanded = $scope.games[i].expanded;
+					local_client_side = $scope.games[i].client_side;
+					$scope.games[i] = data[i];
+					$scope.games[i].expanded = local_expanded;
+					$scope.games[i].client_side = local_client_side;
 					if ($scope.selected_game) {
 						if ($scope.selected_game.id == data[i].id) {
 							$scope.selected_game = data[i];
@@ -58,12 +63,12 @@
 			$scope.$apply();
 		})
 
-		$scope.createGame = function(game_name, playersPerTeam) {
+		$scope.createGame = function(game_name, players_per_team) {
 			var url = '/game';
 			var data = {
 				id : uuidString(),
 				game_name : game_name,
-				playersPerTeam : playersPerTeam,
+				players_per_team : parseInt(players_per_team),
 				players : [ {}, {} ]
 			} 
 			$http.post(url, data)
@@ -117,18 +122,42 @@
 				})
 		}
 
+		$scope.$watch('selected_game', function(val) {
+			if (val) {
+				var client_timeout = val.team_0_length + val.team_1_length;
+				// if (!$scope.client_timeout) {
+				// 	$scope.client_timeout = client_timeout;
+				// }
+				if (val.teams_ready) {
+					console.log('teams are ready');
+					$scope.game_status = 'game';
+					Game_Toggle();
+					GAME_APP(val.id);
+				}
+			}
+		}, true);
 
-		$scope.countPlayers = function(game) {
-			var a = Object.keys(game.players[0]).length;
-			var b = Object.keys(game.players[1]).length;
-			return a + b;
+		Game_Toggle = function() {
+			var canvas = $('canvas');
+			var pregame = $('.pregame');
+			if (canvas.is(':hidden')) {
+				pregame.animate({
+					opacity : 0
+				}, 1000, function() {
+					pregame.css('display', 'none');
+					canvas.css('display', 'block');
+					canvas.animate({
+						opacity: 1
+					}, 1000);
+				})
+			}
 		}
 
 	}])
 	</script>
 
 </head>
-<body ng-app="app" ng-controller="GameCtrl" ng-init="init()" ng-class="{'bg-wait' : game_status=='waiting'}">
+<body ng-app="app" ng-controller="GameCtrl" ng-init="init()" ng-class="{'bg-wait' : game_status=='waiting', 'bg-start' : game_status=='game'}">
 	<div class="pregame centered">	
 		<p class="name_label">Enter your name</p>
 		<input class="bb" type="text" ng-model="player_name">
@@ -159,38 +188,32 @@
 						<div class="each-game row-fluid" ng-repeat="game in games">
 							<div ng-click="game.expanded = !game.expanded">
 								<div class="game_name">{{ game.game_name }}</div>
-								<div class="playersPerTeam">{{ countPlayers(game) }}/{{ game.playersPerTeam*2 }}</div>
+								<div class="playersPerTeam">{{ game.team_0_length + game.team_1_length }}/{{ game.max_players }}</div>	
 							</div>
 							<div ng-show="game.expanded">
 								<div class="half">
-									<div class="each-player-mini team_header_red"
-										 ng-mouseenter="game.show_adder_0 = true"
-										 ng-mouseleave="game.show_adder_0 = false">
-										 Red Team
-										<span ng-show="game.show_adder_0 && game.client_side != 0" 
-											  class="fa fa-plus-square"
-											  ng-click="addPlayer(0, game.id, client_id, player_name, game.client_team); game.client_side = 0">
+									<div class="each-player-mini team_header_red">
+										<span ng-show="game.client_side != 0 && game.team_0_length != game.players_per_team"
+											  ng-click="addPlayer(0, game.id, client_id, player_name, game.client_team); game.client_side = 0">Enter
 										</span>
-										<span ng-show="game.show_adder_0 && game.client_side == 0" 
-											  class="fa fa-minus-square"
-											  ng-click="removePlayer(0, game.id, client_id, player_name, game.client_team); game.client_side = null">
+										<span ng-show="game.client_side == 0"
+											  ng-click="removePlayer(0, game.id, client_id, player_name, game.client_team); game.client_side = null">Leave
 										</span>
+										<span ng-show="game.client_side != 0 && game.team_0_length == game.players_per_team">Full</span>
+										<span>( {{ game.team_0_length }} / {{ game.players_per_team }} )</span>
 									</div>
 									<div class="each-player-mini" ng-repeat="player in game.players.0">{{ player.player_name }}</div>
 								</div>
 								<div class="half">
-									<div class="each-player-mini team_header_blue"
-										 ng-mouseenter="game.show_adder_1 = true"
-										 ng-mouseleave="game.show_adder_1 = false">
-										 Blue Team
-										<span ng-show="game.show_adder_1 && game.client_side != 1" 
-											  class="fa fa-plus-square"
-											  ng-click="addPlayer(1, game.id, client_id, player_name, game.client_team); game.client_side = 1">
-										</span>
-										<span ng-show="game.show_adder_1 && game.client_side == 1" 
-											  class="fa fa-minus-square"
-											  ng-click="removePlayer(1, game.id, client_id, player_name, game.client_team); game.client_side = null">
-										</span>
+									<div class="each-player-mini team_header_blue">
+											<span ng-show="game.client_side != 1 && game.team_1_length != game.players_per_team"
+												    ng-click="addPlayer(1, game.id, client_id, player_name, game.client_team); game.client_side = 1">Enter
+											</span>
+											<span ng-show="game.client_side == 1"
+												    ng-click="removePlayer(1, game.id, client_id, player_name, game.client_team); game.client_side = null">Leave
+											</span>
+											<span ng-show="game.client_side != 1 && game.team_1_length == game.players_per_team">Full</span>
+											<span>( {{ game.team_1_length }} / {{ game.players_per_team }} )</span>
 									</div>
 									<div class="each-player-mini" ng-repeat="player in game.players.1">{{ player.player_name }}</div>
 								</div>
@@ -216,7 +239,7 @@
 			</div>
 		</div>
 	</div>
-	<!-- <canvas class="centered" id="canvas" width="800px" height="500px"></canvas> -->
+	<canvas class="centered" id="canvas" width="800px" height="500px"></canvas>
 	<style>
 		*[ng-click] {
 			cursor: pointer;
@@ -231,12 +254,15 @@
 			padding: 0;
 			margin: 0;
 			background-color: #3498db;
-			-webkit-transition: all .6s;
-			   -moz-transition: all .6s;
-			        transition: all .6s;
+			-webkit-transition: all .9s;
+			   -moz-transition: all .9s;
+			        transition: all .9s;
 		}
 		body.bg-wait {
 			background-color: #27ae60;
+		}
+		body.bg-start {
+			background-color: #c0392b;
 		}
 		canvas {
 			background-color: white;
@@ -244,6 +270,7 @@
 		.pregame {
 			width: 400px;
 			height: 500px;
+			opacity: 1;
 			background-color: rgba(0,0,0,.1);
 			box-shadow: 0 5px 10px rgba(0,0,0,.5);
 		}
@@ -381,6 +408,10 @@
 			background-color: #2980b9;
 			color: white;
 		}
+		canvas {
+			display: none;
+			opacity: 0;
+		}
 
 		.centered {
 			top: 0;
@@ -396,6 +427,5 @@
 			        box-sizing: border-box;
 		}
 	</style>
-	<!-- // <script src="/javascripts/main.js"></script> -->
 </body>
 </html>
