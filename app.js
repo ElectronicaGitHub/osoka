@@ -59,7 +59,8 @@ app.post('/game/player/add', function (req, res, err) {
         if (GAMES[i].id == game_id) {
             delete GAMES[i].players[other_side][client_id];
             GAMES[i].players[side][client_id] = {
-                player_name : player_name
+                player_name : player_name,
+                player_side : side
             }
             console.log('Player added ', GAMES[i]);
         }
@@ -107,48 +108,41 @@ server.listen(app.get('port'), function() {
 });
 
 var GAMES = [];
+var players_global = {};
 
-var players = {};
-
+// main connect
 io.on('connection', function(socket) {
-
-
     console.log('user connected', socket.id);
-    players[socket.id] = {};
-    console.log('CONNECTED = ', players);
-
-    socket.on('disconnect', function() {
-        socket.broadcast.emit('exit', players[socket.id].id)
-        delete players[socket.id];
-        console.log('DISCONNECT = ', players);
-    });
+    // players[socket.id] = {};
 
     socket.on('games', function(data) {
         socket.emit('games', GAMES);
     })
+    socket.on('disconnect', function() {
+        console.log('disconnected', socket.id);    
+    })
 
-    socket.on('init', function(data) {
-        players[socket.id] = data; 
-        socket.broadcast.emit('init', data)
-        console.log('INIT = ', players);
-    });
-    socket.on('movement', function(data) {
-        socket.broadcast.emit('movement', data);
-    });
-    socket.on('ammos', function(data) {
-        socket.broadcast.emit('ammos', data);
-    });
-    socket.on('ammo exit', function(data) {
-        socket.broadcast.emit('ammo exit', data);
-    });
+    // each game connects
+    socket.on('game main', function(game_id) {
 
-    // meta channel
-    // socket.on('main', function(data) {
-    //     console.log('//// main ////');
-    //     var id = 'test_' + data.channel;
-    //     socket.on(id, function(data) {
-    //         console.log(data);
-    //     })
-
-    // })
+        socket.on('disconnect', function() {
+            socket.broadcast.emit('exit ' + game_id, players_global[socket.id].id)
+            delete players_global[socket.id];
+            console.log('disconnect one, players = ', players_global);
+        });
+        socket.on('init ' + game_id, function(data) {
+            players_global[socket.id] = data; 
+            socket.broadcast.emit('init ' + game_id, data)
+            console.log('INIT = ', players_global);
+        });
+        socket.on('movement ' + game_id, function(data) {
+            socket.broadcast.emit('movement ' + game_id, data);
+        });
+        socket.on('ammos ' + game_id, function(data) {
+            socket.broadcast.emit('ammos ' + game_id, data);
+        });
+        socket.on('ammo exit ' + game_id, function(data) {
+            socket.broadcast.emit('ammo exit ' + game_id, data);
+        });
+    })
 })

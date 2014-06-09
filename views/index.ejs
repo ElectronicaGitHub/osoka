@@ -43,7 +43,7 @@
 		var pre_game_client = io();
 
 		pre_game_client.on('games', function(data) {
-			console.log(data);
+			// console.log(data);
 			if (!$scope.games.length) {
 				$scope.games = data;
 			} else {
@@ -54,8 +54,10 @@
 					$scope.games[i].expanded = local_expanded;
 					$scope.games[i].client_side = local_client_side;
 					if ($scope.selected_game) {
-						if ($scope.selected_game.id == data[i].id) {
-							$scope.selected_game = data[i];
+						if ($scope.selected_game.id == $scope.games[i].id) {
+							local_player_side = $scope.selected_game.player_side;
+							$scope.selected_game = $scope.games[i];
+							$scope.selected_game.player_side = local_player_side;
 						}
 					}
 				}
@@ -98,6 +100,8 @@
 					.success(function (data) {
 						console.log('Добавлен в игру ', data);
 						$scope.selected_game = data;
+						$scope.selected_game.player_side = side;
+						console.log('$scope.selected_game = ', $scope.selected_game);
 					}) 
 					.error(function (data) {
 						console.log(data)
@@ -123,16 +127,14 @@
 		}
 
 		$scope.$watch('selected_game', function(val) {
+			console.log('val = ', val);
 			if (val) {
 				var client_timeout = val.team_0_length + val.team_1_length;
-				// if (!$scope.client_timeout) {
-				// 	$scope.client_timeout = client_timeout;
-				// }
 				if (val.teams_ready) {
 					console.log('teams are ready');
 					$scope.game_status = 'game';
 					Game_Toggle();
-					GAME_APP(val.id);
+					GAME_APP(val.id, $scope.selected_game.player_side);
 				}
 			}
 		}, true);
@@ -176,7 +178,7 @@
 				</div>
 				<div class="parameters" ng-show="tab=='create'">
 					<input type="text" placeholder="Game name" ng-model="game_name">
-					<input type="text" placeholder="Players by side" ng-model="players">
+					<input type="number" placeholder="Players by side" ng-model="players">
 					<button type="button" class="btn btn-primary level" ng-click="createGame(game_name, players)">PROCEED</button>
 				</div>	
 				<div class="parameters" ng-show="tab=='games'">

@@ -1,7 +1,7 @@
-GAME_APP = function(GAME_ID) {
+GAME_APP = function(GAME_ID, PLAYER_SIDE) {
 	'use strict';
 
-	console.log('game_app_started');
+	console.log('game_app_started with', GAME_ID, 'and player side is', PLAYER_SIDE);
 
 	var KEYS = {
 		37: 'LEFT',
@@ -26,7 +26,7 @@ GAME_APP = function(GAME_ID) {
 		ENEMYAMMOARRAY = [],
 		AMMOARRAYS = [AMMOARRAY, ENEMYAMMOARRAY],
 		CHARACTERARRAY = {},
-		BULLET_SPEED = 5,
+		BULLET_SPEED = 12,
 		STOP_NUMBER = 1,
 		DRAW_HIT = false, 
 		DRAW_HIT_AMMO_NUMBER = null;
@@ -48,7 +48,7 @@ GAME_APP = function(GAME_ID) {
 		[1,0,1,1,0,0,0,0,0,0,0,0,1,1,0,1],
 		[1,0,1,1,0,0,0,0,0,0,0,0,1,1,0,1],
 		[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-		[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+		[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
 	];
 
 	var RAF = window.requestAnimationFrame ||
@@ -60,30 +60,49 @@ GAME_APP = function(GAME_ID) {
 	ctx.webkitImageSmoothingEnabled = false;
 	ctx.mozImageSmoothingEnabled = false;
 
+	function exitController(array) {
+		console.log('exit controller');
+		if (array.length) {
+			for (i in array) {
+				if (array[i].side != PLAYER_SIDE) {
+					console.log('exit, game isnt over');
+				} else {
+					console.log('exit, game over');
+				}
+			}
+		} else {
+			console.log('your team wins')
+		}
+
+	}
+
 	(function preload() {
 		client = io();
 
-		client.on('init', function(data) {
-				CHARACTERARRAY[data.id] = new Character(data.name, data.meta.drawX, data.meta.drawY, 16, 16);
+		client.emit('game main', GAME_ID);
+
+		client.on('init ' + GAME_ID, function(data) {
+				CHARACTERARRAY[data.id] = new Character(data.name, data.meta.drawX, data.meta.drawY, 16, 16, data.meta.side);
 				console.log('персонаж присоединился к игре', data.id, data.name);
 				console.log('МАССИВ ПЕРСОНАЖЕЙ = ', CHARACTERARRAY);
 		})
-		client.on('exit', function(id) {
+		client.on('exit ' + GAME_ID, function(id) {
 			console.log('character with id exited = ', id)
 			delete CHARACTERARRAY[id];
 			console.log(CHARACTERARRAY);
+			exitController(CHARACTERARRAY);
 		})
-		client.on('movement', function(data) {
+		client.on('movement ' + GAME_ID, function(data) {
 			if (!CHARACTERARRAY[data.id]) { // хз что происходит, поэтому проверка
 				CHARACTERARRAY[data.id] = new Character(data.name, data.meta.drawX, data.meta.drawY, 16, 16);
 			}
 			CHARACTERARRAY[data.id].meta = data.meta;
 		})
-		client.on('ammos', function(data) {
+		client.on('ammos ' + GAME_ID, function(data) {
 			var ammo = new Ammo(data.startX, data.startY, data.endX, data.endY, data.initiator, data.id);
 			ENEMYAMMOARRAY.push(ammo);
 		})
-		client.on('ammo exit', function(data) {
+		client.on('ammo exit ' + GAME_ID, function(data) {
 			for (var i in AMMOARRAY) {
 				if (AMMOARRAY[i].id == data.id) {
 					DRAW_HIT = true;
@@ -106,18 +125,8 @@ GAME_APP = function(GAME_ID) {
 
 
 	function create() {
-		CHARACTER = new Character('Philip', 50, 50, 16, 16);
-		client.emit('init', CHARACTER);
-		// var id = 'fhkwf3987f';
-		// client.emit('main', {
-		// 	channel : id,
-		// 	data : { name : 'philip'}
-		// })
-		// var chan = 'test_' + id;
-		// setInterval(function() {
-			// client.emit(chan, { test : 'test'})
-		// }, 1000)
-
+		CHARACTER = new Character('Philip', 50, 50, 16, 16, PLAYER_SIDE);
+		client.emit('init ' + GAME_ID, CHARACTER);
 		main();
 	}
 
@@ -154,7 +163,7 @@ GAME_APP = function(GAME_ID) {
 		}
 		RAF(main);
 	}	
-	function Character(name, startX, startY, spriteSizeX, spriteSizeY) {
+	function Character(name, startX, startY, spriteSizeX, spriteSizeY, side) {
 		this.id = uuidString();
 		this.name = name || 'character',
 		this.meta = {
@@ -163,6 +172,7 @@ GAME_APP = function(GAME_ID) {
 			lastX : startX, 
 			lastY : startY,
 			health : CHARACTER_MAX_HEALTH,
+			side : side,
 			spriteSizeX : spriteSizeX,
 			spriteSizeY : spriteSizeY,
 			speed : CHARACTER_SPEED,
@@ -178,7 +188,7 @@ GAME_APP = function(GAME_ID) {
 	Character.prototype.sendToSocket = function() {
 		if (this.meta.lastX != this.meta.drawX || 
 			this.meta.lastY != this.meta.drawY ) {
-			client.emit('movement', this);
+			client.emit('movement ' + GAME_ID, this);
 		}
 	}
 
@@ -313,8 +323,8 @@ GAME_APP = function(GAME_ID) {
 			this.meta.drawY < charEndY) {
 			console.log('попадание');
 			CHARACTER.meta.health -= AMMO_POWER;
-			client.emit('ammo exit', this);
-			client.emit('movement', CHARACTER);
+			client.emit('ammo exit ' + GAME_ID, this);
+			client.emit('movement ' + GAME_ID, CHARACTER);
 			return true;
 		} else return false;
 	}
@@ -380,7 +390,7 @@ GAME_APP = function(GAME_ID) {
 								posX, posY);
 
 		AMMOARRAY.push(ammo);
-		client.emit('ammos', {
+		client.emit('ammos ' + GAME_ID, {
 			initiator : CHARACTER.id,
 			startX : CHARACTER.meta.drawX + CHARACTER.meta.spriteSizeX,
 			startY : CHARACTER.meta.drawY + CHARACTER.meta.spriteSizeY,
