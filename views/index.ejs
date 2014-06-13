@@ -9,6 +9,7 @@
 	<script src="/libs/jquery/dist/jquery.min.js"></script>
 	<script src="/libs/angular/angular.min.js"></script>
 	<script src="/javascripts/socket.io-client/socket.io.js"></script>
+	<script src="/javascripts/GAME_SETTINGS.js"></script>
 	<script src="/javascripts/main.js"></script>
 	<script>
 	app = angular.module('app', [])
@@ -140,7 +141,7 @@
 		}, true);
 
 		Game_Toggle = function() {
-			var canvas = $('canvas');
+			var canvas = $('.canvas-cnt');
 			var pregame = $('.pregame');
 			if (canvas.is(':hidden')) {
 				pregame.animate({
@@ -241,7 +242,11 @@
 			</div>
 		</div>
 	</div>
-	<canvas class="centered" id="canvas" width="800px" height="500px"></canvas>
+	<div class="centered canvas-cnt">
+		<canvas id="canvas_bg" width="800px" height="500px"></canvas>
+		<canvas id="canvas" width="800px" height="500px"></canvas>
+		
+	</div>
 	<style>
 		*[ng-click] {
 			cursor: pointer;
@@ -411,8 +416,16 @@
 			color: white;
 		}
 		canvas {
-			display: none;
+			position: absolute;
+			top:0;
+			left: 0;
+			background-color: transparent;
+		}
+		.canvas-cnt {
 			opacity: 0;
+			display: none;
+			width: 800px;
+			height: 500px;
 		}
 
 		.centered {

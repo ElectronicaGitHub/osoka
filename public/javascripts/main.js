@@ -15,7 +15,9 @@ GAME_APP = function(GAME_ID, PLAYER_SIDE) {
 		32: 'SPACE'
 	},
 		CANVAS = document.getElementById('canvas'),
-		ctx = canvas.getContext('2d'),
+		CANVAS_BG = document.getElementById('canvas_bg'),
+		ctx = CANVAS.getContext('2d'),
+		ctx_bg = CANVAS_BG.getContext('2d'),
 		CANVASWIDTH = canvas.width,
 		CANVASHEIGHT = canvas.height,
 		CHARACTER_SPEED = 5,
@@ -38,18 +40,7 @@ GAME_APP = function(GAME_ID, PLAYER_SIDE) {
 	    return Math.random().toString(36).substring(7)
 	}
 
-	var MAP = [
-		[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-		[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-		[1,0,1,1,0,0,0,0,0,0,0,0,1,1,0,1],
-		[1,0,1,1,0,0,0,0,0,0,0,0,1,1,0,1],
-		[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-		[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-		[1,0,1,1,0,0,0,0,0,0,0,0,1,1,0,1],
-		[1,0,1,1,0,0,0,0,0,0,0,0,1,1,0,1],
-		[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-		[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-	];
+	
 
 	var RAF = window.requestAnimationFrame ||
 		      window.webkitRequestAnimationFrame ||
@@ -119,7 +110,7 @@ GAME_APP = function(GAME_ID, PLAYER_SIDE) {
 		sprite.addEventListener('load', create, false);
 		document.addEventListener('keydown', checkKeyDown, false);
 		document.addEventListener('keyup', checkKeyUp, false);
-		canvas.addEventListener('click', mouseClicked, false);
+		CANVAS.addEventListener('click', mouseClicked, false);
 		console.log('sprites loaded')
 	})();
 
@@ -127,12 +118,12 @@ GAME_APP = function(GAME_ID, PLAYER_SIDE) {
 	function create() {
 		CHARACTER = new Character('Philip', 50, 50, 16, 16, PLAYER_SIDE);
 		client.emit('init ' + GAME_ID, CHARACTER);
+		mapCreate();
 		main();
 	}
 
 	function main() {
 		ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
-		mapCreate();
 
 		CHARACTER.draw();
 
@@ -409,9 +400,10 @@ GAME_APP = function(GAME_ID, PLAYER_SIDE) {
 	console.log(BLOCKS_FOR_X, BLOCKS_FOR_Y, BLOCKS_SIZE)
 
 	function mapCreate() {
+		console.log('map create')
 		for (var i = MAP.length-1; i >= 0; i--) {
 			for (var j = MAP[i].length-1; j >= 0; j--) {
-				ctx.drawImage(background, 
+				ctx_bg.drawImage(background, 
 					0 + 50 * MAP[i][j], 0, 
 					50, 50, 
 					BLOCKS_SIZE.X * j, BLOCKS_SIZE.Y * i, 
@@ -419,7 +411,4 @@ GAME_APP = function(GAME_ID, PLAYER_SIDE) {
 			}
 		}
 	}
-
-
-
 }
