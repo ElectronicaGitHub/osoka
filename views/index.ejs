@@ -135,7 +135,7 @@
 					console.log('teams are ready');
 					$scope.game_status = 'game';
 					Game_Toggle();
-					GAME_APP(val.id, $scope.selected_game.player_side);
+					GAME_APP(val.id, $scope.selected_game.player_side, $scope.player_name.substr(0,10));
 				}
 			}
 		}, true);
@@ -196,27 +196,32 @@
 							<div ng-show="game.expanded">
 								<div class="half">
 									<div class="each-player-mini team_header_red">
-										<span ng-show="game.client_side != 0 && game.team_0_length != game.players_per_team"
+										<div ng-show="game.client_side != 0 && game.team_0_length != game.players_per_team"
 											  ng-click="addPlayer(0, game.id, client_id, player_name, game.client_team); game.client_side = 0">Enter
-										</span>
-										<span ng-show="game.client_side == 0"
+											  <span>( {{ game.team_0_length }} / {{ game.players_per_team }} )</span>
+										</div>
+										<div ng-show="game.client_side == 0"
 											  ng-click="removePlayer(0, game.id, client_id, player_name, game.client_team); game.client_side = null">Leave
-										</span>
-										<span ng-show="game.client_side != 0 && game.team_0_length == game.players_per_team">Full</span>
-										<span>( {{ game.team_0_length }} / {{ game.players_per_team }} )</span>
+											  <span>( {{ game.team_0_length }} / {{ game.players_per_team }} )</span>
+										</div>
+										<div ng-show="game.client_side != 0 && game.team_0_length == game.players_per_team">Full
+											<span>( {{ game.team_0_length }} / {{ game.players_per_team }} )</span></div>
 									</div>
 									<div class="each-player-mini" ng-repeat="player in game.players.0">{{ player.player_name }}</div>
 								</div>
 								<div class="half">
 									<div class="each-player-mini team_header_blue">
-											<span ng-show="game.client_side != 1 && game.team_1_length != game.players_per_team"
-												    ng-click="addPlayer(1, game.id, client_id, player_name, game.client_team); game.client_side = 1">Enter
-											</span>
-											<span ng-show="game.client_side == 1"
-												    ng-click="removePlayer(1, game.id, client_id, player_name, game.client_team); game.client_side = null">Leave
-											</span>
-											<span ng-show="game.client_side != 1 && game.team_1_length == game.players_per_team">Full</span>
-											<span>( {{ game.team_1_length }} / {{ game.players_per_team }} )</span>
+											<div ng-show="game.client_side != 1 && game.team_1_length != game.players_per_team"
+												    ng-click="addPlayer(1, game.id, client_id, player_name, game.client_team); game.client_side = 1">Enter 
+												    <span>( {{ game.team_1_length }} / {{ game.players_per_team }} )</span>
+											</div>
+											<div ng-show="game.client_side == 1"
+												    ng-click="removePlayer(1, game.id, client_id, player_name, game.client_team); game.client_side = null">Leave 
+												    <span>( {{ game.team_1_length }} / {{ game.players_per_team }} )</span>
+											</div>
+											<div ng-show="game.client_side != 1 && game.team_1_length == game.players_per_team">Full 
+											<span>( {{ game.team_1_length }} / {{ game.players_per_team }} )</span></div>
+											
 									</div>
 									<div class="each-player-mini" ng-repeat="player in game.players.1">{{ player.player_name }}</div>
 								</div>

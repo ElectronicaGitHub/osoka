@@ -1,4 +1,4 @@
-GAME_APP = function(GAME_ID, PLAYER_SIDE) {
+GAME_APP = function(GAME_ID, PLAYER_SIDE, PLAYER_NAME) {
 	'use strict';
 
 	console.log('game_app_started with', GAME_ID, 'and player side is', PLAYER_SIDE);
@@ -90,7 +90,7 @@ GAME_APP = function(GAME_ID, PLAYER_SIDE) {
 			CHARACTERARRAY[data.id].meta = data.meta;
 		})
 		client.on('ammos ' + GAME_ID, function(data) {
-			var ammo = new Ammo(data.startX, data.startY, data.endX, data.endY, data.initiator, data.id);
+			var ammo = new Ammo(data.startX, data.startY, data.endX, data.endY, data.side, data.initiator, data.id);
 			ENEMYAMMOARRAY.push(ammo);
 		})
 		client.on('ammo exit ' + GAME_ID, function(data) {
@@ -116,7 +116,7 @@ GAME_APP = function(GAME_ID, PLAYER_SIDE) {
 
 
 	function create() {
-		CHARACTER = new Character('Philip', 50, 50, 16, 16, PLAYER_SIDE);
+		CHARACTER = new Character(PLAYER_NAME, 50, 50, 16, 16, PLAYER_SIDE);
 		client.emit('init ' + GAME_ID, CHARACTER);
 		mapCreate();
 		main();
@@ -214,14 +214,16 @@ GAME_APP = function(GAME_ID, PLAYER_SIDE) {
 	        if (this.shouldUseAlternativeSprite) this.meta.wayGo = 10;   
 	        else this.meta.wayGo = 11;   
 		}
-
+		var sprite_coords = (this.meta.side == 0) ? 30 : 250;
 		ctx.drawImage(sprite, 0, 
-			30 + this.meta.spriteSizeY * this.meta.wayGo, 
+			sprite_coords + this.meta.spriteSizeY * this.meta.wayGo, 
 			this.meta.spriteSizeX, this.meta.spriteSizeY, 
 			this.meta.drawX, this.meta.drawY, 
 			this.meta.spriteSizeX * this.meta.multiple, this.meta.spriteSizeY * this.meta.multiple);
-		ctx.fillStyle = '#050'; 
-		ctx.fillText(this.meta.health, this.meta.drawX + this.meta.spriteSizeX / 2, 
+		var color = (this.meta.side == 0) ? '#050' : '#500';
+		ctx.fillStyle = color; 
+		var full_text = this.name + ' ' + this.meta.health;
+		ctx.fillText(full_text, this.meta.drawX - this.meta.spriteSizeX / 2, 
 			this.meta.drawY + this.meta.spriteSizeY * this.meta.multiple + 10);
 	}
 	Character.prototype.checkDirection = function() {
@@ -266,7 +268,7 @@ GAME_APP = function(GAME_ID, PLAYER_SIDE) {
 		}	
 	}
 
-	function Ammo(xS,yS,xE,yE, initiator, id) {
+	function Ammo(xS,yS,xE,yE, side, initiator, id) {
 	    this.meta = {
 			drawX : xS,
 			drawY : yS
@@ -278,6 +280,7 @@ GAME_APP = function(GAME_ID, PLAYER_SIDE) {
 	    this.rotation = (this.angleRadian * 180 / Math.PI);
 	    this.id = id || uuidString();
 	    this.initiator = initiator || CHARACTER.id;
+	    this.side = side;
 	}
 	Ammo.prototype.collision = function() {
 		var x = this.meta.drawX,
@@ -300,7 +303,10 @@ GAME_APP = function(GAME_ID, PLAYER_SIDE) {
 		else return false;
 	}
 	Ammo.prototype.hit = function() {
+		console.log(this.initiator, CHARACTER.id, this.side, CHARACTER.meta.side);
 		if (this.initiator == CHARACTER.id) return false;
+		if (this.side == CHARACTER.meta.side) return false;
+
 		var offsetX = CHARACTER.meta.spriteSizeX * CHARACTER.meta.multiple;
 		var offsetY = CHARACTER.meta.spriteSizeY * CHARACTER.meta.multiple;
 		var charStartX = CHARACTER.meta.drawX;
@@ -378,11 +384,12 @@ GAME_APP = function(GAME_ID, PLAYER_SIDE) {
 			posY = e.offsetY,
 			ammo = new Ammo(CHARACTER.meta.drawX + CHARACTER.meta.spriteSizeX, 
 								CHARACTER.meta.drawY + CHARACTER.meta.spriteSizeY, 
-								posX, posY);
+								posX, posY, CHARACTER.meta.side);
 
 		AMMOARRAY.push(ammo);
 		client.emit('ammos ' + GAME_ID, {
 			initiator : CHARACTER.id,
+			side : CHARACTER.meta.side, 
 			startX : CHARACTER.meta.drawX + CHARACTER.meta.spriteSizeX,
 			startY : CHARACTER.meta.drawY + CHARACTER.meta.spriteSizeY,
 			endX : posX,
